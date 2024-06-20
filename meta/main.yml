@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  author: Michael Hollister
+  company: FUTO Holdings Inc
+  description: postgres backup s3 role
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: ArchLinux
+      versions:
+        - all
+    - name: EL
+      versions:
+        - all
+  license: Apache-2.0
+  min_ansible_version: '2.1'

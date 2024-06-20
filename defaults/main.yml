@@ -1,0 +1,78 @@
+---
+# postgres-backup-s3 provides Docker images to periodically back up a
+# PostgreSQL database to AWS S3, and to restore from the backup as needed.
+#   * Images are tagged by the major PostgreSQL version supported: 12, 13, 14, 15 or 16.
+#   * Run docker exec <container name> sh backup.sh to trigger a backup ad-hoc.
+# See: https://github.com/eeshugerman/postgres-backup-s3
+
+postgres_backup_s3_enabled: false
+
+# postgres_backup_s3_identifier controls the identifier of this postgres-backup-s3 instance, which influences:
+# - the default storage path
+# - the names of systemd services and containers
+postgres_backup_s3_identifier: postgres-backup-s3
+
+postgres_backup_s3_container_image_self_build: false
+postgres_backup_s3_container_image_self_build_repo: "https://github.com/eeshugerman/postgres-backup-s3.git"
+
+postgres_backup_s3_docker_image_path: "eeshugerman/postgres-backup-s3"
+postgres_backup_s3_docker_image: "{{ postgres_backup_s3_docker_image_name_prefix }}{{ postgres_backup_s3_docker_image_path }}:{{ postgres_backup_s3_docker_image_tag }}"
+postgres_backup_s3_docker_image_name_prefix: "{{ 'localhost/' if postgres_backup_s3_container_image_self_build else matrix_container_global_registry_prefix }}"
+postgres_backup_s3_docker_image_tag: "master"  # No tags exists currently so using branch
+postgres_backup_s3_docker_image_force_pull: "{{ postgres_backup_s3_docker_image.endswith(':16') }}"
+
+postgres_backup_s3_base_path: "/{{ postgres_backup_s3_identifier }}"
+postgres_backup_s3_docker_src_files_path: "{{ postgres_backup_s3_base_path }}/docker-src"
+
+# List of systemd services that postgres-backup-s3.service depends on
+postgres_backup_s3_systemd_required_services_list: "{{ postgres_backup_s3_systemd_required_services_list_default + postgres_backup_s3_systemd_required_services_list_auto + postgres_backup_s3_systemd_required_services_list_custom }}"
+postgres_backup_s3_systemd_required_services_list_default: ["docker.service"]
+postgres_backup_s3_systemd_required_services_list_auto: []
+postgres_backup_s3_systemd_required_services_list_custom: []
+
+# List of systemd services that postgres-backup-s3.service wants
+postgres_backup_s3_systemd_wanted_services_list: []
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+postgres_backup_s3_container_network: "{{ postgres_backup_s3_identifier }}"
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+postgres_backup_s3_container_additional_networks: []
+
+# Extra arguments for the Docker container
+postgres_backup_s3_container_extra_arguments: []
+
+# *****************************************************************************
+# postgres-backup-s3 Settings
+# *****************************************************************************
+
+postgres_backup_s3_database: ""
+postgres_backup_s3_host: ""
+postgres_backup_s3_port: 5432
+postgres_backup_s3_user: ""
+postgres_backup_s3_password: ""
+
+postgres_backup_s3_access_key_id: ""
+postgres_backup_s3_secret_access_key: ""
+postgres_backup_s3_bucket: ""
+postgres_backup_s3_region: "us-west-1"
+postgres_backup_s3_path: "backup"
+
+# Set S3_ENDPOINT if you're using a non-AWS S3-compatible storage provider.
+postgres_backup_s3_endpoint: ""
+postgres_backup_s3_s3v4: "no"
+
+# Optional environment variables
+postgres_backup_s3_pgdump_extra_opts: ""
+
+# The SCHEDULE variable determines backup frequency. See go-cron schedules documentation https://pkg.go.dev/github.com/robfig/cron#hdr-Predefined_schedules.
+# Omit to run the backup immediately and then exit.
+postgres_backup_s3_schedule: "@weekly"
+
+# If postgres_backup_s3_passphrase is provided, the backup will be encrypted using GPG.
+postgres_backup_s3_passphrase: ""
+
+# If postgres_backup_s3_backup_keep_days is set, backups older than this many days will be deleted from S3.
+postgres_backup_s3_backup_keep_days: ""

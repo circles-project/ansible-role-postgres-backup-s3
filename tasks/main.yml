@@ -1,0 +1,20 @@
+---
+
+- tags:
+    - setup-all
+    - setup-postgres-backup-s3
+    - install-all
+    - install-postgres-backup-s3
+  block:
+    - when: postgres_backup_s3_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: postgres_backup_s3_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- tags:
+    - setup-all
+    - setup-postgres-backup-s3
+  block:
+    - when: not postgres_backup_s3_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

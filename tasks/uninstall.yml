@@ -1,0 +1,26 @@
+---
+
+- name: Check existence of postgres-backup-s3 service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/{{ postgres_backup_s3_identifier }}.service"
+  register: postgres_backup_s3_service_stat
+
+- name: Ensure postgres-backup-s3 is removed
+  when: postgres_backup_s3_service_stat.stat.exists | bool
+  block:
+    - name: Ensure postgres-backup-s3 is stopped
+      ansible.builtin.service:
+        name: "{{ postgres_backup_s3_identifier }}"
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure postgres-backup-s3 service doesn't exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/{{ postgres_backup_s3_identifier }}.service"
+        state: absent
+
+    - name: Ensure postgres-backup-s3 path doesn't exist
+      ansible.builtin.file:
+        path: "{{ postgres_backup_s3_base_path }}"
+        state: absent

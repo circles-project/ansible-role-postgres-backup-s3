@@ -1,0 +1,47 @@
+---
+- name: Ensure postgres-backup-s3 Docker image is pulled
+  community.docker.docker_image:
+    name: "{{ postgres_backup_s3_docker_image }}"
+    source: "{{ 'pull' if ansible_version.major > 2 or ansible_version.minor > 7 else omit }}"
+    force_source: "{{ postgres_backup_s3_docker_image_force_pull if ansible_version.major > 2 or ansible_version.minor >= 8 else omit }}"
+    force: "{{ omit if ansible_version.major > 2 or ansible_version.minor >= 8 else postgres_backup_s3_docker_image_force_pull }}"
+  when: not postgres_backup_s3_container_image_self_build | bool
+  register: result
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: result is not failed
+
+- name: Ensure postgres-backup-s3 repository is present when self-building
+  ansible.builtin.git:
+    repo: "{{ postgres_backup_s3_container_image_self_build_repo }}"
+    dest: "{{ postgres_backup_s3_docker_src_files_path }}"
+    version: "{{ postgres_backup_s3_docker_image.split(':')[1] }}"
+    force: "yes"
+  become: true
+  become_user: "{{ matrix_user_username }}"
+  register: postgres_backup_s3_git_pull_results
+  when: postgres_backup_s3_container_image_self_build | bool
+
+- name: Ensure postgres-backup-s3 Docker image is built
+  community.docker.docker_image:
+    name: "{{ postgres_backup_s3_docker_image }}"
+    source: build
+    force_source: "{{ postgres_backup_s3_git_pull_results.changed if ansible_version.major > 2 or ansible_version.minor >= 8 else omit }}"
+    force: "{{ omit if ansible_version.major > 2 or ansible_version.minor >= 8 else postgres_backup_s3_git_pull_results.changed }}"
+    build:
+      dockerfile: Dockerfile
+      path: "{{ postgres_backup_s3_docker_src_files_path }}"
+      pull: true
+  when: postgres_backup_s3_container_image_self_build | bool
+
+- name: Ensure postgres-backup-s3 container network is created
+  community.general.docker_network:
+    enable_ipv6: "{{ devture_systemd_docker_base_ipv6_enabled }}"
+    name: "{{ postgres_backup_s3_container_network }}"
+    driver: bridge
+
+- name: Ensure postgres-backup-s3.service installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/systemd/postgres-backup-s3.service.j2"
+    dest: "{{ devture_systemd_docker_base_systemd_path }}/postgres-backup-s3.service"
+    mode: 0644
