@@ -1,4 +1,28 @@
 ---
+- name: Ensure postgres-backup-s3 paths exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: 0750
+    owner: "{{ matrix_user_username }}"
+    group: "{{ matrix_user_groupname }}"
+  with_items:
+    - path: "{{ postgres_backup_s3_base_path }}"
+      when: true
+    - path: "{{ postgres_backup_s3_docker_src_files_path }}"
+      when: "{{ postgres_backup_s3_container_image_self_build }}"
+  when: "item.when | bool"
+
+- name: Ensure postgres-backup-s3 support files installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/{{ item }}.j2"
+    dest: "{{ postgres_backup_s3_base_path }}/{{ item }}"
+    mode: 0640
+    owner: "{{ matrix_user_username }}"
+    group: "{{ matrix_user_groupname }}"
+  with_items:
+    - env
+
 - name: Ensure postgres-backup-s3 Docker image is pulled
   community.docker.docker_image:
     name: "{{ postgres_backup_s3_docker_image }}"
@@ -10,6 +34,39 @@
   retries: "{{ devture_playbook_help_container_retries_count }}"
   delay: "{{ devture_playbook_help_container_retries_delay }}"
   until: result is not failed
+
+- when: "postgres_backup_s3_container_image_self_build | bool"
+  block:
+    - name: Ensure postgres-backup-s3 repository is present on self-build
+      ansible.builtin.git:
+        repo: "{{ postgres_backup_s3_container_image_self_build_repo }}"
+        dest: "{{ postgres_backup_s3_docker_src_files_path }}"
+        version: "{{ postgres_backup_s3_docker_image.split(':')[1] }}"
+        force: "yes"
+      become: true
+      become_user: "{{ matrix_user_username }}"
+      register: postgres_backup_s3_git_pull_results
+
+    - name: Check if postgres-backup-s3 Docker image exists
+      ansible.builtin.command: "{{ devture_systemd_docker_base_host_command_docker }} images --quiet --filter 'reference={{ postgres_backup_s3_docker_image }}'"
+      register: postgres_backup_s3_docker_image_check_result
+      changed_when: false
+
+    # Invoking the `docker build` command here, instead of calling the `docker_image` Ansible module,
+    # because the latter does not support BuildKit.
+    # See: https://github.com/ansible-collections/community.general/issues/514
+    - name: Ensure postgres-backup-s3 Docker image is built
+      ansible.builtin.shell:
+        chdir: "{{ postgres_backup_s3_docker_src_files_path }}"
+        cmd: |
+          {{ devture_systemd_docker_base_host_command_docker }} build \
+          -t "{{ postgres_backup_s3_docker_image }}" \
+          --build-arg ALPINE_VERSION={{ postgres_backup_s3_container_image_self_build_version }} \
+          .
+      environment:
+        DOCKER_BUILDKIT: 1
+      changed_when: true
+      when: "postgres_backup_s3_git_pull_results.changed | bool or postgres_backup_s3_docker_image_check_result.stdout == ''"
 
 - name: Ensure postgres-backup-s3 repository is present when self-building
   ansible.builtin.git:
@@ -43,5 +100,5 @@
 - name: Ensure postgres-backup-s3.service installed
   ansible.builtin.template:
     src: "{{ role_path }}/templates/systemd/postgres-backup-s3.service.j2"
-    dest: "{{ devture_systemd_docker_base_systemd_path }}/postgres-backup-s3.service"
+    dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ postgres_backup_s3_identifier }}.service"
     mode: 0644

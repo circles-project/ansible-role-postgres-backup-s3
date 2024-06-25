@@ -15,10 +15,18 @@ postgres_backup_s3_identifier: postgres-backup-s3
 postgres_backup_s3_container_image_self_build: false
 postgres_backup_s3_container_image_self_build_repo: "https://github.com/eeshugerman/postgres-backup-s3.git"
 
+# Postgres -> Alpine version mapping: https://github.com/eeshugerman/postgres-backup-s3/blob/master/.github/workflows/build-and-push-images.yml
+postgres_backup_s3_container_image_self_build_postgres_12: "3.12"
+postgres_backup_s3_container_image_self_build_postgres_13: "3.14"
+postgres_backup_s3_container_image_self_build_postgres_14: "3.16"
+postgres_backup_s3_container_image_self_build_postgres_15: "3.17"
+postgres_backup_s3_container_image_self_build_postgres_16: "3.19"
+postgres_backup_s3_container_image_self_build_version: "{{ postgres_backup_s3_container_image_self_build_postgres_16 }}"
+
 postgres_backup_s3_docker_image_path: "eeshugerman/postgres-backup-s3"
 postgres_backup_s3_docker_image: "{{ postgres_backup_s3_docker_image_name_prefix }}{{ postgres_backup_s3_docker_image_path }}:{{ postgres_backup_s3_docker_image_tag }}"
 postgres_backup_s3_docker_image_name_prefix: "{{ 'localhost/' if postgres_backup_s3_container_image_self_build else matrix_container_global_registry_prefix }}"
-postgres_backup_s3_docker_image_tag: "master"  # No tags exists currently so using branch
+postgres_backup_s3_docker_image_tag: "16"
 postgres_backup_s3_docker_image_force_pull: "{{ postgres_backup_s3_docker_image.endswith(':16') }}"
 
 postgres_backup_s3_base_path: "/{{ postgres_backup_s3_identifier }}"
@@ -57,6 +65,7 @@ postgres_backup_s3_password: ""
 postgres_backup_s3_access_key_id: ""
 postgres_backup_s3_secret_access_key: ""
 postgres_backup_s3_bucket: ""
+postgres_backup_s3_prefix: ""
 postgres_backup_s3_region: "us-west-1"
 postgres_backup_s3_path: "backup"
 
@@ -69,7 +78,7 @@ postgres_backup_s3_pgdump_extra_opts: ""
 
 # The SCHEDULE variable determines backup frequency. See go-cron schedules documentation https://pkg.go.dev/github.com/robfig/cron#hdr-Predefined_schedules.
 # Omit to run the backup immediately and then exit.
-postgres_backup_s3_schedule: "@weekly"
+postgres_backup_s3_schedule: "0 0 0 * * 0"
 
 # If postgres_backup_s3_passphrase is provided, the backup will be encrypted using GPG.
 postgres_backup_s3_passphrase: ""

@@ -1,6 +1,6 @@
 #jinja2: lstrip_blocks: "True"
 [Unit]
-Description=Periodically back up a PostgreSQL database to AWS S3, and to restore from the backup as needed.
+Description=postgres-backup-s3
 {% for service in postgres_backup_s3_systemd_required_services_list %}
 Requires={{ service }}
 After={{ service }}
@@ -21,10 +21,9 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
 			--rm \
 			--name={{ postgres_backup_s3_identifier }} \
 			--log-driver=none \
-			--user={{ matrix_user_uid }}:{{ matrix_user_gid }} \
 			--cap-drop=ALL \
-			--read-only \
 			--network={{ postgres_backup_s3_container_network }} \
+			--env-file={{ postgres_backup_s3_base_path }}/env \
 			{% for arg in postgres_backup_s3_container_extra_arguments %}
 			{{ arg }} \
 			{% endfor %}

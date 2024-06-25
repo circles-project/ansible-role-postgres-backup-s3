@@ -6,6 +6,7 @@
       You need to define a required configuration setting (`{{ item.name }}`).
   when: "item.when | bool and vars[item.name] == ''"
   with_items:
+    - {'name': 'postgres_backup_s3_bucket', when: true}
     - {'name': 'postgres_backup_s3_database', when: true}
     - {'name': 'postgres_backup_s3_host', when: true}
     - {'name': 'postgres_backup_s3_user', when: true}
